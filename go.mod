@@ -1,4 +1,4 @@
-module github.com/kezlya/gcsimage
+module github.com/devteamclub/gcsimage
 
 go 1.13
 
