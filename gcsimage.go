@@ -25,26 +25,22 @@ const (
 	BottomRight
 )
 
-type Ext string
-
-const (
-	JPG Ext = "jpg"
-	PNG     = "png"
-	GIF     = "gif"
-)
-
 type Bucket struct {
 	handle *storage.BucketHandle
 }
 
-func InitBucket(ctx c.Context, bucket string) (*Bucket, error) {
+func InitBucket(ctx c.Context, bucketName string) (*Bucket, error) {
+	if len(bucketName) == 0 {
+		return nil, errors.New("bucket name is empty")
+	}
+
 	client, err := storage.NewClient(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Bucket{
-		handle: client.Bucket(bucket),
+		handle: client.Bucket(bucketName),
 	}, nil
 }
 
@@ -53,6 +49,7 @@ func (b *Bucket) getOriginal(ctx c.Context, id string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer reader.Close()
 
 	buf := new(bytes.Buffer)
 	_, errBytes := buf.ReadFrom(reader)
@@ -63,21 +60,40 @@ func (b *Bucket) getOriginal(ctx c.Context, id string) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (b *Bucket) Get(ctx c.Context, id string, ext Ext, anchor Anchor, width, height int) ([]byte, error) {
+func (b *Bucket) getByKey(ctx c.Context, key string) ([]byte, error, bool) {
+	reader, err := b.handle.Object(key).NewReader(ctx)
+	if err != nil {
+		return nil, err, false
+	}
+	defer reader.Close()
+
+	data, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return nil, err, true
+	}
+
+	return data, nil, true
+}
+
+func (b *Bucket) Get(ctx c.Context, id string, anchor Anchor, width, height int) ([]byte, error) {
 	if width <= 0 && height <= 0 {
 		return b.getOriginal(ctx, id)
 	}
 
-	key := fmt.Sprintf("%s-%d-%d-%s", id, width, height, ext)
-	reader, err := b.handle.Object(key).NewReader(ctx)
-	if err == nil {
-		return ioutil.ReadAll(reader)
+	key := fmt.Sprintf("%s-%d-%d", id, width, height)
+	data, err, exist := b.getByKey(ctx, key)
+	if exist {
+		return data, err
 	}
 
-	reader, err = b.handle.Object(id).NewReader(ctx)
+	objHand := b.handle.Object(id)
+	attr, err := objHand.Attrs(ctx)
+
+	reader, err := objHand.NewReader(ctx)
 	if err != nil {
 		return nil, err
 	}
+	defer reader.Close()
 
 	original, errImg := imaging.Decode(reader, imaging.AutoOrientation(true))
 	if errImg != nil {
@@ -87,21 +103,22 @@ func (b *Bucket) Get(ctx c.Context, id string, ext Ext, anchor Anchor, width, he
 	modified := imaging.Fill(original, width, height, imaging.Anchor(anchor), imaging.Lanczos)
 	buf := new(bytes.Buffer)
 
-	switch ext {
-	case PNG:
+	switch attr.ContentType {
+	case "image/png":
 		err = imaging.Encode(buf, modified, imaging.PNG)
-	case JPG:
+	case "image/jpeg":
 		err = imaging.Encode(buf, modified, imaging.JPEG)
-	case GIF:
+	case "image/gif":
 		err = imaging.Encode(buf, modified, imaging.GIF)
 	default:
-		err = errors.New(fmt.Sprintf("%s is not supported. Only png, jpeg, gif", ext))
+		msg := fmt.Sprintf("%s is not supported. Only image/png, image/jpeg, image/gif", attr.ContentType)
+		err = errors.New(msg)
 	}
 	if err != nil {
 		return nil, err
 	}
 
-	data := buf.Bytes()
+	data = buf.Bytes()
 	errSave := b.Save(ctx, key, data)
 	if errSave != nil {
 		return nil, errSave
@@ -126,14 +143,10 @@ func (b *Bucket) Save(ctx c.Context, key string, data []byte) error {
 	}
 
 	writer := b.handle.Object(key).NewWriter(ctx)
+	defer writer.Close()
 	_, errWrite := writer.Write(data)
 	if errWrite != nil {
 		return errWrite
-	}
-
-	errClose := writer.Close()
-	if errClose != nil {
-		return errClose
 	}
 
 	return nil
