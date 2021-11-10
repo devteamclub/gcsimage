@@ -29,23 +29,27 @@ type Bucket struct {
 	handle *storage.BucketHandle
 }
 
-func InitBucket(ctx c.Context, bucket string) (*Bucket, error) {
+func InitBucket(ctx c.Context, bucketName string) (*Bucket, error) {
+	if len(bucketName) == 0 {
+		return nil, errors.New("bucket name is empty")
+	}
+
 	client, err := storage.NewClient(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Bucket{
-		handle: client.Bucket(bucket),
+		handle: client.Bucket(bucketName),
 	}, nil
 }
 
 func (b *Bucket) getOriginal(ctx c.Context, id string) ([]byte, error) {
 	reader, err := b.handle.Object(id).NewReader(ctx)
 	if err != nil {
-		_ = reader.Close()
 		return nil, err
 	}
+	defer reader.Close()
 
 	buf := new(bytes.Buffer)
 	_, errBytes := buf.ReadFrom(reader)
@@ -61,10 +65,10 @@ func (b *Bucket) getByKey(ctx c.Context, key string) ([]byte, error, bool) {
 	if err != nil {
 		return nil, err, false
 	}
+	defer reader.Close()
 
 	data, err := ioutil.ReadAll(reader)
 	if err != nil {
-		_ = reader.Close()
 		return nil, err, true
 	}
 
@@ -87,9 +91,9 @@ func (b *Bucket) Get(ctx c.Context, id string, anchor Anchor, width, height int)
 
 	reader, err := objHand.NewReader(ctx)
 	if err != nil {
-		_ = reader.Close()
 		return nil, err
 	}
+	defer reader.Close()
 
 	original, errImg := imaging.Decode(reader, imaging.AutoOrientation(true))
 	if errImg != nil {
@@ -139,9 +143,9 @@ func (b *Bucket) Save(ctx c.Context, key string, data []byte) error {
 	}
 
 	writer := b.handle.Object(key).NewWriter(ctx)
+	defer writer.Close()
 	_, errWrite := writer.Write(data)
 	if errWrite != nil {
-		_ = writer.Close()
 		return errWrite
 	}
 
