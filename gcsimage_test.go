@@ -106,6 +106,44 @@ func TestAdd(t *testing.T) {
 	}
 }
 
+func TestWebpAdd(t *testing.T) {
+	bucket, _ := InitBucket(background, os.Getenv("IMAGES_STORAGE_BUCKET"))
+
+	webpImage, _ := os.ReadFile("5.webp")
+	empty := make([]byte, 0)
+
+	//act
+	err := bucket.Save(background, "test.webp", webpImage)
+	good, _ := bucket.Add(background, webpImage)
+	bad, _ := bucket.Add(background, empty)
+
+	//assert
+	if err != nil {
+		t.Errorf("fail to save image")
+	}
+
+	if good == "" {
+		t.Errorf("fail to add image")
+	}
+
+	if bad != "" {
+		t.Errorf("Should not add empty image")
+	}
+}
+
+func TestWebpGet(t *testing.T) {
+	bucket, _ := InitBucket(background, os.Getenv("IMAGES_STORAGE_BUCKET"))
+	data, err := bucket.Get(background, "87d83287-2a6e-4ee0-a5bb-90656cc9f507", Top, 0, 0)
+	if err != nil {
+		t.Fail()
+	}
+
+	err = ioutil.WriteFile("87d83287-2a6e-4ee0-a5bb-90656cc9f507.webp", data, 777)
+	if err != nil {
+		t.Fail()
+	}
+}
+
 func dataFromUrl(url string) []byte {
 	resp, _ := http.Get(url)
 	defer resp.Body.Close()
