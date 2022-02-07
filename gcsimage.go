@@ -88,6 +88,10 @@ func (b *Bucket) Get(ctx c.Context, id string, anchor Anchor, width, height int)
 
 	objHand := b.handle.Object(id)
 	attr, err := objHand.Attrs(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	if attr.ContentType == "image/webp" {
 		return b.getOriginal(ctx, id)
 	}

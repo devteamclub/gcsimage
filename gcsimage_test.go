@@ -132,15 +132,32 @@ func TestWebpAdd(t *testing.T) {
 }
 
 func TestWebpGet(t *testing.T) {
-	bucket, _ := InitBucket(background, os.Getenv("IMAGES_STORAGE_BUCKET"))
-	data, err := bucket.Get(background, "87d83287-2a6e-4ee0-a5bb-90656cc9f507", Top, 0, 0)
+	bucket, err := InitBucket(background, os.Getenv("IMAGES_STORAGE_BUCKET"))
 	if err != nil {
+		t.Errorf("Could not intialize bucket")
+	}
+
+	goodWebp, err := bucket.Get(background, "5.webp", Top, 25, 25)
+	if err != nil {
+		t.Errorf("Could not intialize bucket")
+	}
+
+	_, err = bucket.Get(background, "5.webp", Top, 0, 0)
+	if err != nil {
+		t.Errorf("failed to get existing image with 0 width, height")
+	}
+
+	notExistingWebp, notExistingWepbErr := bucket.Get(background, "ThisP1ct9eShou111dNeverBE5.webp", Top, 25, 25)
+	if notExistingWepbErr == nil || notExistingWebp != nil {
 		t.Fail()
 	}
 
-	err = ioutil.WriteFile("87d83287-2a6e-4ee0-a5bb-90656cc9f507.webp", data, 777)
-	if err != nil {
-		t.Fail()
+	if len(goodWebp) == 0 || goodWebp == nil {
+		t.Errorf("failed to get existing image (check image in the bucket)")
+	}
+
+	if notExistingWebp != nil || notExistingWepbErr == nil {
+		t.Errorf("Should return nil and error")
 	}
 }
 
