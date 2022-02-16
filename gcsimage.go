@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/disintegration/imaging"
 	"github.com/google/uuid"
+	"image"
 	"io/ioutil"
 )
 
@@ -76,7 +77,7 @@ func (b *Bucket) getByKey(ctx c.Context, key string) ([]byte, error, bool) {
 }
 
 func (b *Bucket) Get(ctx c.Context, id string, anchor Anchor, width, height int) ([]byte, error) {
-	if width <= 0 && height <= 0 {
+	if width < 0 || height < 0 {
 		return b.getOriginal(ctx, id)
 	}
 
@@ -107,9 +108,14 @@ func (b *Bucket) Get(ctx c.Context, id string, anchor Anchor, width, height int)
 		return nil, errImg
 	}
 
-	modified := imaging.Fill(original, width, height, imaging.Anchor(anchor), imaging.Lanczos)
-	buf := new(bytes.Buffer)
+	var modified *image.NRGBA
+	if width > 0 && height > 0 {
+		modified = imaging.Fill(original, width, height, imaging.Anchor(anchor), imaging.Lanczos)
+	} else {
+		modified = imaging.Resize(original, width, height, imaging.Lanczos)
+	}
 
+	buf := new(bytes.Buffer)
 	switch attr.ContentType {
 	case "image/png":
 		err = imaging.Encode(buf, modified, imaging.PNG)
