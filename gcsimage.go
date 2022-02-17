@@ -81,6 +81,10 @@ func (b *Bucket) Get(ctx c.Context, id string, anchor Anchor, width, height int)
 		return b.getOriginal(ctx, id)
 	}
 
+	if width == 0 && height == 0 {
+		return b.getOriginal(ctx, id)
+	}
+
 	key := fmt.Sprintf("%s-%d-%d", id, width, height)
 	data, err, exist := b.getByKey(ctx, key)
 	if exist {

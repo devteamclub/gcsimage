@@ -113,6 +113,49 @@ func TestResize(t *testing.T) {
 	}
 }
 
+func TestOriginal(t *testing.T) {
+	bucket, err := InitBucket(background, os.Getenv("IMAGES_STORAGE_BUCKET"))
+	if err != nil {
+		t.Fail()
+	}
+
+	original, err := imaging.Open("original.png")
+	if err != nil {
+		t.Fail()
+	}
+
+	buf := new(bytes.Buffer)
+	err = imaging.Encode(buf, original, imaging.PNG)
+	if err != nil {
+		t.Fail()
+	}
+
+	id, err := bucket.Add(background, buf.Bytes())
+	if err != nil {
+		t.Fail()
+	}
+
+	data, err := bucket.Get(background, id, Top, 0, 0)
+	if err != nil || data == nil {
+		t.Fail()
+	}
+
+	data, err = bucket.Get(background, id, Top, -100, 0)
+	if err != nil || data == nil {
+		t.Fail()
+	}
+
+	data, err = bucket.Get(background, id, Top, 0, -100)
+	if err != nil || data == nil {
+		t.Fail()
+	}
+
+	data, err = bucket.Get(background, id, Top, -100, -100)
+	if err != nil || data == nil {
+		t.Fail()
+	}
+}
+
 func TestAdd(t *testing.T) {
 	//arrange
 	bucket, _ := InitBucket(background, os.Getenv("IMAGES_STORAGE_BUCKET"))
