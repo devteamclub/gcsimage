@@ -30,15 +30,15 @@ func TestGet(t *testing.T) {
 	bucket, _ := InitBucket(background, os.Getenv("IMAGES_STORAGE_BUCKET"))
 
 	//act
-	goodJPG, ok := bucket.Get(background, "cat", TopRight, 10, 10)
-	goodPNG, ok := bucket.Get(background, "cat", TopRight, 10, 10)
-	bad, notOk := bucket.Get(background, "", TopRight, 10, 10)
+	goodJPG, ctJPG, ok := bucket.Get(background, "cat", TopRight, 10, 10)
+	goodPNG, ctPNG, ok := bucket.Get(background, "f384b3e8-5134-440e-b6bd-eb053fa18138", TopRight, 10, 10)
+	bad, _, notOk := bucket.Get(background, "", TopRight, 10, 10)
 
 	//assert
-	if goodJPG == nil && ok != nil {
+	if goodJPG == nil || ok != nil || ctJPG != "image/jpeg" {
 		t.Errorf("fail to get jpg image")
 	}
-	if goodPNG == nil && ok != nil {
+	if goodPNG == nil || ok != nil || ctPNG != "image/png" {
 		t.Errorf("fail to get png image")
 	}
 
@@ -69,7 +69,7 @@ func TestGetTransperent(t *testing.T) {
 		t.Fail()
 	}
 
-	data, err := bucket.Get(background, id, Top, 150, 150)
+	data, _, err := bucket.Get(background, id, Top, 150, 150)
 	if err != nil || data == nil {
 		t.Fail()
 	}
@@ -97,17 +97,17 @@ func TestResize(t *testing.T) {
 		t.Fail()
 	}
 
-	data, err := bucket.Get(background, id, Top, 150, 0)
+	data, _, err := bucket.Get(background, id, Top, 150, 0)
 	if err != nil || data == nil {
 		t.Fail()
 	}
 
-	data, err = bucket.Get(background, id, Top, 0, 150)
+	data, _, err = bucket.Get(background, id, Top, 0, 150)
 	if err != nil || data == nil {
 		t.Fail()
 	}
 
-	data, err = bucket.Get(background, id, Top, 5, 5)
+	data, _, err = bucket.Get(background, id, Top, 5, 5)
 	if err != nil || data == nil {
 		t.Fail()
 	}
@@ -135,22 +135,22 @@ func TestOriginal(t *testing.T) {
 		t.Fail()
 	}
 
-	data, err := bucket.Get(background, id, Top, 0, 0)
+	data, _, err := bucket.Get(background, id, Top, 0, 0)
 	if err != nil || data == nil {
 		t.Fail()
 	}
 
-	data, err = bucket.Get(background, id, Top, -100, 0)
+	data, _, err = bucket.Get(background, id, Top, -100, 0)
 	if err != nil || data == nil {
 		t.Fail()
 	}
 
-	data, err = bucket.Get(background, id, Top, 0, -100)
+	data, _, err = bucket.Get(background, id, Top, 0, -100)
 	if err != nil || data == nil {
 		t.Fail()
 	}
 
-	data, err = bucket.Get(background, id, Top, -100, -100)
+	data, _, err = bucket.Get(background, id, Top, -100, -100)
 	if err != nil || data == nil {
 		t.Fail()
 	}
@@ -213,17 +213,17 @@ func TestWebpGet(t *testing.T) {
 		t.Errorf("Could not intialize bucket")
 	}
 
-	goodWebp, err := bucket.Get(background, "5.webp", Top, 25, 25)
+	goodWebp, _, err := bucket.Get(background, "5.webp", Top, 25, 25)
 	if err != nil {
 		t.Errorf("Could not intialize bucket")
 	}
 
-	_, err = bucket.Get(background, "5.webp", Top, 0, 0)
+	_, _, err = bucket.Get(background, "5.webp", Top, 0, 0)
 	if err != nil {
 		t.Errorf("failed to get existing image with 0 width, height")
 	}
 
-	notExistingWebp, notExistingWepbErr := bucket.Get(background, "ThisP1ct9eShou111dNeverBE5.webp", Top, 25, 25)
+	notExistingWebp, _, notExistingWepbErr := bucket.Get(background, "ThisP1ct9eShou111dNeverBE5.webp", Top, 25, 25)
 	if notExistingWepbErr == nil || notExistingWebp != nil {
 		t.Fail()
 	}
