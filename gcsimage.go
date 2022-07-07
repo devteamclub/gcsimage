@@ -69,7 +69,7 @@ func (b *Bucket) Get(ctx c.Context, id string, anchor Anchor, width, height int)
 	}
 
 	contentType = attr.ContentType
-	if contentType == "image/webp" || width <= 0 || height <= 0 {
+	if contentType == "image/webp" || (width <= 0 && height <= 0) {
 		data, err, _ = b.getByKey(ctx, id)
 		return
 	}
