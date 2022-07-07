@@ -45,22 +45,6 @@ func InitBucket(ctx c.Context, bucketName string) (*Bucket, error) {
 	}, nil
 }
 
-func (b *Bucket) getOriginal(ctx c.Context, id string) ([]byte, error) {
-	reader, err := b.handle.Object(id).NewReader(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer reader.Close()
-
-	buf := new(bytes.Buffer)
-	_, errBytes := buf.ReadFrom(reader)
-	if errBytes != nil {
-		return nil, errBytes
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (b *Bucket) getByKey(ctx c.Context, key string) ([]byte, error, bool) {
 	reader, err := b.handle.Object(key).NewReader(ctx)
 	if err != nil {
@@ -76,40 +60,38 @@ func (b *Bucket) getByKey(ctx c.Context, key string) ([]byte, error, bool) {
 	return data, nil, true
 }
 
-func (b *Bucket) Get(ctx c.Context, id string, anchor Anchor, width, height int) ([]byte, error) {
-	if width < 0 || height < 0 {
-		return b.getOriginal(ctx, id)
+func (b *Bucket) Get(ctx c.Context, id string, anchor Anchor, width, height int) (data []byte, contentType string, err error) {
+	objHand := b.handle.Object(id)
+	attr, attrErr := objHand.Attrs(ctx)
+	if attrErr != nil {
+		err = attrErr
+		return
 	}
 
-	if width == 0 && height == 0 {
-		return b.getOriginal(ctx, id)
+	contentType = attr.ContentType
+	if contentType == "image/webp" || width <= 0 || height <= 0 {
+		data, err, _ = b.getByKey(ctx, id)
+		return
 	}
 
 	key := fmt.Sprintf("%s-%d-%d", id, width, height)
-	data, err, exist := b.getByKey(ctx, key)
-	if exist {
-		return data, err
+	isExist := false
+	data, err, isExist = b.getByKey(ctx, key)
+	if isExist {
+		return
 	}
 
-	objHand := b.handle.Object(id)
-	attr, err := objHand.Attrs(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if attr.ContentType == "image/webp" {
-		return b.getOriginal(ctx, id)
-	}
-
-	reader, err := objHand.NewReader(ctx)
-	if err != nil {
-		return nil, err
+	reader, readErr := objHand.NewReader(ctx)
+	if readErr != nil {
+		err = readErr
+		return
 	}
 	defer reader.Close()
 
-	original, errImg := imaging.Decode(reader, imaging.AutoOrientation(true))
-	if errImg != nil {
-		return nil, errImg
+	original, imgErr := imaging.Decode(reader, imaging.AutoOrientation(true))
+	if imgErr != nil {
+		err = imgErr
+		return
 	}
 
 	var modified *image.NRGBA
@@ -132,16 +114,17 @@ func (b *Bucket) Get(ctx c.Context, id string, anchor Anchor, width, height int)
 		err = errors.New(msg)
 	}
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	data = buf.Bytes()
-	errSave := b.Save(ctx, key, data)
-	if errSave != nil {
-		return nil, errSave
+	saveErr := b.Save(ctx, key, data)
+	if saveErr != nil {
+		err = saveErr
+		return
 	}
 
-	return data, nil
+	return
 }
 
 func (b *Bucket) Add(ctx c.Context, data []byte) (string, error) {
